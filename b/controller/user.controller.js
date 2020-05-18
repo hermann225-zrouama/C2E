@@ -30,7 +30,6 @@ exports.signupPost = function (req, res, next) {
       error: errors,
     });
   }
-  // se rassurer que le compte n'existe pas deja
   User.findOne(
     {
       email: req.body.email
@@ -39,13 +38,11 @@ exports.signupPost = function (req, res, next) {
         .replace(/[\s]{2,}/g, " "),
     },
     function (err, user) {
-      // se rassurer que personne ne possède cette email
       if (user)
         return res.send({
           msg: "le mail entré est déja associé a un autre compte",
           type: "error",
         });
-      // creer et enregistrer le nouvel utilisateur
       user = new Users({
         nom: req.body.nom,
         email: req.body.email
@@ -64,19 +61,16 @@ exports.signupPost = function (req, res, next) {
           console.log(errors);
           return res.send({ msg: err.message });
         }
-        // Creer un token de verification pour ce utilisateur
         var token = new Tokens({
           _userId: user._id,
           token: crypto.randomBytes(16).toString("hex"),
         });
-        // Enregistrer le token
         token.save(function (err) {
           if (err) {
             return res.send({
               msg: err.message,
             });
           }
-          // Envoyer le mail
 
           var transporter = nodemailer.createTransport({
             service: "gmail",
@@ -86,10 +80,10 @@ exports.signupPost = function (req, res, next) {
           var mailOptions = {
             from: "debah2002@gmail.com",
             to: user.email,
-            subject: "Account Verification Token",
+            subject: "Verification du compte",
             text:
               "Hello,\n\n" +
-              "Please verify your account by clicking the link: \nhttp://" +
+              "Veuillez verifier votre compte en cliquant sur le lien suivant: \nhttp://" +
               req.headers.host +
               "/api/confirmation/" +
               token.token +
@@ -100,7 +94,7 @@ exports.signupPost = function (req, res, next) {
               return res.send({ msg: err.message });
             }
             res.status(200).send({
-              msg: "A verification email has been sent to " + user.email + ".",
+              msg: "Un email de verification a été envoyé a " + user.email + ".",
               type: "success",
             });
           });
@@ -114,18 +108,15 @@ exports.signupPost = function (req, res, next) {
  * POST /confirmation
  */
 exports.confirmationPost = function (req, res, next) {
-  // Verifier la présence d'erreur
   var errors = req.validationErrors;
   if (errors) return res.status(400).send(errors);
 
-  // Chercher un token correspondant
   Token.findOne({ token: req.params.token }, function (err, token) {
     if (!token)
       return res.status(400).send({
         type: "not-verified",
         msg: "Votre token de confirmation doit avoir expiré.",
       });
-    // Si je trouve je cherche l'utilisateur associé
     User.findOne(
       {
         _id: token._userId,
@@ -135,14 +126,13 @@ exports.confirmationPost = function (req, res, next) {
         if (!user)
           return res
             .status(400)
-            .send({ msg: "We were unable to find a user for this token." });
+            .send({ msg: "cette cle n'est associée a aucun utilisateur." });
         if (user.isVerified)
           return res.status(400).send({
             type: "already-verified",
             msg: "Compte déja vérifié.",
           });
 
-        // Je verifie confirme l'inscription de l'utilisateur et l'enregistre
         user.isVerified = true;
         user.save(function (err) {
           if (err) {
@@ -159,7 +149,6 @@ exports.confirmationPost = function (req, res, next) {
  * POST /resend
  */
 exports.resendTokenPost = function (req, res, next) {
-  // Verifier la presence d'erreur
   var errors = req.validationErrors;
   if (errors) return res.status(400).send(errors);
   console.log(Mail);
@@ -169,37 +158,34 @@ exports.resendTokenPost = function (req, res, next) {
       if (!user)
         return res
           .status(400)
-          .send({ msg: "We were unable to find a user with that email." });
+          .send({ msg: "cette clé n'est associée a aucun utilisateur" });
       if (user.isVerified)
         return res.status(400).send({
           msg:
-            'This account has already been verified. Please log in. <a href="/login">verification</a>',
+            'Compte déja vérifié prère de vous connecter',
         });
 
-      // Creer un token de verification pour l'user
       var token = new Token({
         _userId: user._id,
         token: crypto.randomBytes(16).toString("hex"),
       });
 
-      // Enregistrement du token
       token.save(function (err) {
         if (err) {
           return res.send({ msg: err.message });
         }
 
-        // envoi du mail
         var transporter = nodemailer.createTransport({
           service: "gmail",
-          auth: { user: "debah2002@gmail.com", pass: "hermann2002" },
+          auth: { user: "debah2002@gmail.com", pass: "*******" },
         });
         var mailOptions = {
           from: "debah2002@gmail.com",
           to: user.email,
-          subject: "Account Verification Token",
+          subject: "Vérification de compte",
           text:
             "Hello,\n\n" +
-            "Please verify your account by clicking the link: \nhttp://" +
+            "Veuillez vérifier votre compte en cliquant sur le lien suivant: \nhttp://" +
             req.headers.host +
             "/confirmation/" +
             token.token +
@@ -243,7 +229,6 @@ exports.loginPost = function (req, res, next) {
             " n'est associée a aucun compte",
         });
       if (bcrypt.compareSync(req.body.password, user.password)) {
-        // Se rassurer que son inscription a été confirmée
         if (!user.isVerified)
           return res.send({
             type: "error",
@@ -294,7 +279,7 @@ exports.get_u_data = function (req, res, next) {
       if (!data)
         res
           .status(404)
-          .send({ message: "Not found User with id " + req.params.id });
+          .send({ message: "Aucun user n'a l'id : " + req.params.id });
       else res.send({ user_data: data });
     });
   }
@@ -328,9 +313,7 @@ exports.forgot = function (req, res, next) {
         });
       } else {
         var token = crypto.randomBytes(16).toString("hex");
-        // Enregistrer le token
 
-        // Envoyer le mail
         Tok = token;
 
         User.findByIdAndUpdate(
@@ -340,7 +323,7 @@ exports.forgot = function (req, res, next) {
         ).then(function () {
           var transporter = nodemailer.createTransport({
             service: "gmail",
-            auth: { user: "debah2002@gmail.com", pass: "hermann2002" },
+            auth: { user: "debah2002@gmail.com", pass: "*******" },
           });
 
           var mailOptions = {
@@ -393,7 +376,7 @@ exports.reset = function (req, res, next) {
           } else {
             var transporter = nodemailer.createTransport({
               service: "gmail",
-              auth: { user: "debah2002@gmail.com", pass: "hermann2002" },
+              auth: { user: "debah2002@gmail.com", pass: "*********" },
             });
 
             var mailOptions = {
